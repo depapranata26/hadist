@@ -167,9 +167,11 @@
   </section>
 </main>
 <footer>
-  Data: dataset terbuka <a href="https://github.com/fawazahmed0/hadith-api">hadith-api (fawazahmed0)</a> untuk 7 kitab,
-  dan <a href="https://github.com/gadingnst/hadith-api">hadith-api (gadingnst, data tafsirq.com)</a> untuk Musnad Ahmad &amp; Sunan ad-Darimi.
-  Teks lengkap dimuat dari dataset saat dibuka, agar situs tetap ringan. Daftar kitab, jumlah hadist, dan daftar bab tersimpan di repo ini.
+  Data: seluruh teks 9 kitab kini tersimpan di repo ini (database sendiri) — membaca tidak lagi bergantung ke API luar.
+  Sumber awal: dataset terbuka <a href="https://github.com/fawazahmed0/hadith-api">hadith-api (fawazahmed0)</a> untuk 7 kitab,
+  dan <a href="https://github.com/gadingnst/hadith-api">hadith-api (gadingnst, data tafsirq.com)</a> untuk Musnad Ahmad &amp; Sunan ad-Darimi;
+  kekosongan terjemahan diisi dari gadingnst yang dicocokkan lewat teks Arab (bukan lewat nomor, karena penomorannya beda).
+  Saat pertama membuka satu kitab, file kitab itu diunduh sekali lalu tersimpan di cache browser — buka berikutnya instan.
   Catatan: terjemahan Ahmad &amp; Darimi hanya sebagian dari keseluruhan kitab (lihat keterangan tiap kitab).
 </footer>
 <script>
@@ -318,7 +320,22 @@ function sectionOf(b, n){
   }
   return cur;
 }
+let localAvail = {};
+async function getLocal(b){
+  if (localAvail[b.id] !== undefined) return localAvail[b.id] ? bookCache[b.id] : null;
+  try {
+    const r = await fetch(`data/${b.id}.json`);
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    const list = (d.hadiths || []).map(h=>({n: h.n, text: h.t, arab: h.a}));
+    bookCache[b.id] = list; localAvail[b.id] = true;
+    return list;
+  } catch (e) { localAvail[b.id] = false; return null; }
+}
 async function ensureBookData(b){
+  if (bookCache[b.id] && localAvail[b.id]) return bookCache[b.id];
+  const local = await getLocal(b);
+  if (local) return local;
   if (bookCache[b.id]) return bookCache[b.id];
   let list;
   if (b.source === "gading") {
@@ -381,9 +398,16 @@ async function openHadith(n){
   show("view-hadith");
   try {
     let texts = [], arabs = [];
-    if (book.source === "gading") {
+    const local = await getLocal(book);
+    if (local) {
+      const items = local.filter(x=>String(x.n) === String(n));
+      if (!items.length) throw new Error("kosong");
+      texts = items.map(h=>h.text || "");
+      arabs = items.map(h=>h.arab || "");
+      if (items.length > 1) document.getElementById("h-status").textContent = items.length + " riwayat pada nomor ini.";
+    } else if (book.source === "gading") {
       const list = await ensureBookData(book);
-      const item = list.find(x=>x.n === n);
+      const item = list.find(x=>String(x.n) === String(n));
       if (!item) throw new Error("kosong");
       texts = [item.text]; arabs = [item.arab];
     } else {
@@ -393,11 +417,25 @@ async function openHadith(n){
       texts = list.map(h=>h.text);
       if (list.length > 1) document.getElementById("h-status").textContent = list.length + " riwayat pada nomor ini.";
     }
-    document.getElementById("h-text").textContent = texts.join("\n\n");
-    renderExplain(texts.join("\n\n"));
-    if (arabs.length && arabs[0]) currentArab = arabs.join("\n\n");
+    const allEmpty = texts.every(t=>!(t||"").trim());
+    if (allEmpty) {
+      document.getElementById("h-text").textContent = "Terjemahan Indonesia untuk nomor ini belum tersedia di dataset terbuka. Teks Arab di bawah tetap bisa dibaca.";
+      document.getElementById("h-explain").classList.add("hidden");
+    } else {
+      document.getElementById("h-text").textContent = texts.join("\n\n");
+      renderExplain(texts.join("\n\n"));
+    }
+    if (arabs.length && arabs[0]) {
+      currentArab = arabs.join("\n\n");
+      if (allEmpty) {
+        document.getElementById("h-arab").textContent = currentArab;
+        document.getElementById("h-arab-wrap").classList.remove("hidden");
+      }
+    }
   } catch (e) {
-    document.getElementById("h-text").textContent = "Nomor ini tidak tersedia di kitab ini (mungkin kosong dalam dataset). Coba nomor lain atau pakai pencarian.";
+    document.getElementById("h-text").textContent = book.source === "gading"
+      ? "Nomor ini tidak tersedia: Musnad Ahmad & Sunan ad-Darimi memang hanya sebagian nomor yang diterjemahkan di dataset (penomoran asli s.d. 26.363 / 3.367). Coba nomor lain atau pakai pencarian."
+      : "Nomor ini tidak tersedia di kitab ini. Coba nomor lain atau pakai pencarian.";
   }
 }
 async function toggleArab(){
@@ -466,16 +504,12 @@ async function searchBook(){
 document.getElementById("btn-random").onclick = async function(){
   const b = INDEX.books[Math.floor(Math.random()*INDEX.books.length)];
   book = b;
-  if (b.source === "gading") {
-    try {
-      const list = await ensureBookData(b);
-      const item = list[Math.floor(Math.random()*list.length)];
-      openHadith(item.n);
-    } catch (e) { alert("Gagal memuat kitab acak, coba lagi."); }
-  } else {
-    const n = Math.floor(Math.random()*(b.max - b.min + 1)) + b.min;
-    openHadith(n);
-  }
+  try {
+    const list = await ensureBookData(b);
+    const pool = list.filter(h=>(h.text||"").trim());
+    const pick = (pool.length ? pool : list)[Math.floor(Math.random()*(pool.length ? pool.length : list.length))];
+    openHadith(pick.n);
+  } catch (e) { alert("Gagal memuat kitab acak, coba lagi."); }
 };
 document.getElementById("search-q").addEventListener("keydown", e=>{ if (e.key === "Enter") searchBook(); });
 document.getElementById("jump-num").addEventListener("keydown", e=>{ if (e.key === "Enter") jumpTo(); });
