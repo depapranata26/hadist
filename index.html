@@ -130,6 +130,16 @@
     <div class="card">
       <div class="bab" id="h-bab"></div>
       <h2 id="h-title" style="margin:4px 0 12px"></h2>
+      <div id="h-explain" class="hidden" style="background:#eef7f1;border:1px solid #bcd9c8;border-radius:12px;padding:14px;margin-bottom:14px">
+        <b>💡 Penjelasan — gampang dipahami</b>
+        <div id="h-matan-wrap" style="margin-top:8px">
+          <div class="mut">Inti pesan hadist ini:</div>
+          <div class="hadith-text" id="h-matan"></div>
+        </div>
+        <div id="h-words" style="margin-top:10px"></div>
+        <p class="mut" style="margin:10px 0 0">Panel ini dibuat otomatis dari teks asli (inti pesan + arti kata sulit) — bukan karangan baru.</p>
+      </div>
+      <div class="mut">Teks lengkap:</div>
       <div class="hadith-text" id="h-text"></div>
       <div id="h-arab-wrap" class="hidden" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
         <div class="arab" id="h-arab"></div>
@@ -259,6 +269,47 @@ function changeFont(d){
   localStorage.setItem("h-font", fontSize);
   applyFont();
 }
+function extractMatan(t){
+  if(!t) return null;
+  const clean = s => s.replace(/^[\s,;:"'“”]+/, "").replace(/^(berkata|dia berkata|ia berkata|beliau berkata|katanya)\s*;?\s*/i, "").replace(/^[\s,;:"'“”]+/, "").trim();
+  let m = t.match(/bersabda\s*:\s*/);
+  if(m){
+    const s = clean(t.slice(m.index + m[0].length));
+    if(s.length >= 60) return s;
+  }
+  m = t.match(/bersabda\s+/);
+  if(m){
+    const s = clean(t.slice(m.index + m[0].length));
+    if(s.length >= 60) return s;
+  }
+  const idx = t.lastIndexOf("]");
+  if(idx !== -1){
+    const s = clean(t.slice(idx + 1));
+    if(s.length >= 20) return s;
+  }
+  const parts = t.split(/berkata\s*;/);
+  if(parts.length > 1){
+    const s = clean(parts[parts.length - 1]);
+    if(s.length >= 20) return s;
+  }
+  return null;
+}
+function glossaryHits(t){
+  const low = (t || "").toLowerCase();
+  return GLOSSARY.filter(([term])=>low.includes(term.toLowerCase())).slice(0, 8);
+}
+function renderExplain(fullText){
+  const panel = document.getElementById("h-explain");
+  const matan = extractMatan(fullText);
+  const words = glossaryHits(fullText);
+  if(!matan && !words.length){ panel.classList.add("hidden"); return; }
+  document.getElementById("h-matan").textContent = matan || "";
+  document.getElementById("h-matan-wrap").classList.toggle("hidden", !matan);
+  document.getElementById("h-words").innerHTML = words.length
+    ? "<b>Kata sulit di hadist ini:</b>" + words.map(([t,d])=>`<div class="gloss-term"><b>${esc(t)}</b><p>${esc(d)}</p></div>`).join("")
+    : "";
+  panel.classList.remove("hidden");
+}
 function sectionOf(b, n){
   let cur = null;
   for (const s of b.sections) {
@@ -325,6 +376,7 @@ async function openHadith(n){
   document.getElementById("h-title").textContent = book.name + " — No. " + n;
   document.getElementById("h-bab").textContent = sectionOf(book, n) || "";
   document.getElementById("h-text").textContent = "Memuat...";
+  document.getElementById("h-explain").classList.add("hidden");
   document.getElementById("h-status").textContent = "";
   show("view-hadith");
   try {
@@ -342,6 +394,7 @@ async function openHadith(n){
       if (list.length > 1) document.getElementById("h-status").textContent = list.length + " riwayat pada nomor ini.";
     }
     document.getElementById("h-text").textContent = texts.join("\n\n");
+    renderExplain(texts.join("\n\n"));
     if (arabs.length && arabs[0]) currentArab = arabs.join("\n\n");
   } catch (e) {
     document.getElementById("h-text").textContent = "Nomor ini tidak tersedia di kitab ini (mungkin kosong dalam dataset). Coba nomor lain atau pakai pencarian.";
