@@ -77,7 +77,7 @@
   <section id="view-home">
     <div class="stats">
       <div class="stat"><b id="st-books">9</b><span>Kitab</span></div>
-      <div class="stat"><b id="st-count">43.645</b><span>Hadist</span></div>
+      <div class="stat"><b id="st-count">66.121</b><span>Hadist</span></div>
       <div class="stat"><b id="st-sec">394</b><span>Bab</span></div>
     </div>
     <div class="row" style="margin-bottom:16px">
@@ -103,7 +103,7 @@
     <p class="mut" id="book-note" style="margin:-8px 0 16px"></p>
     <div class="card">
       <div class="row">
-        <input type="number" id="jump-num" min="1" placeholder="Nomor hadist, mis. 1">
+        <input type="number" id="jump-num" min="1" step="any" placeholder="Nomor hadist, mis. 1 (desimal boleh, mis. 384.2)">
         <button onclick="jumpTo()">Buka</button>
       </div>
     </div>
@@ -170,9 +170,9 @@
   Data: seluruh teks 9 kitab kini tersimpan di repo ini (database sendiri) — membaca tidak lagi bergantung ke API luar.
   Sumber awal: dataset terbuka <a href="https://github.com/fawazahmed0/hadith-api">hadith-api (fawazahmed0)</a> untuk 7 kitab,
   dan <a href="https://github.com/gadingnst/hadith-api">hadith-api (gadingnst, data tafsirq.com)</a> untuk Musnad Ahmad &amp; Sunan ad-Darimi;
-  kekosongan terjemahan diisi dari gadingnst yang dicocokkan lewat teks Arab (bukan lewat nomor, karena penomorannya beda).
+  kekosongan terjemahan diisi dari gadingnst dan carihadis.com yang dicocokkan lewat teks Arab (bukan lewat nomor, karena penomorannya beda).
   Saat pertama membuka satu kitab, file kitab itu diunduh sekali lalu tersimpan di cache browser — buka berikutnya instan.
-  Catatan: terjemahan Ahmad &amp; Darimi hanya sebagian dari keseluruhan kitab (lihat keterangan tiap kitab).
+  Musnad Ahmad (26.363) dan Sunan ad-Darimi (3.367) sudah lengkap.
 </footer>
 <script>
 const FAWAZ_BASES = [
@@ -183,7 +183,7 @@ const GADING_BASES = [
   "https://cdn.jsdelivr.net/gh/gadingnst/hadith-api@master/books/",
   "https://raw.githubusercontent.com/gadingnst/hadith-api/master/books/"
 ];
-let INDEX = null, book = null, hadithNum = null, arabShown = false, currentArab = null, bookCache = {};
+let INDEX = null, book = null, hadithNum = null, arabShown = false, currentArab = null, bookCache = {}, wantArab = false;
 
 async function fetchFrom(bases, path) {
   let lastErr = null;
@@ -297,15 +297,21 @@ function extractMatan(t){
   return null;
 }
 function glossaryHits(t){
-  const low = (t || "").toLowerCase();
-  return GLOSSARY.filter(([term])=>low.includes(term.toLowerCase())).slice(0, 8);
+  const low = t || "";
+  const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return GLOSSARY.filter(([term])=>{
+    const re = new RegExp("(?<![A-Za-z'’])" + escRe(term) + "(nya|ku|mu|lah|kah|pun)?(?![A-Za-z'’])", "i");
+    return re.test(low);
+  }).slice(0, 8);
 }
 function renderExplain(fullText){
   const panel = document.getElementById("h-explain");
   const matan = extractMatan(fullText);
   const words = glossaryHits(fullText);
   if(!matan && !words.length){ panel.classList.add("hidden"); return; }
-  document.getElementById("h-matan").textContent = matan || "";
+  let matanTxt = matan || "";
+  if (matanTxt && /^[a-z]/.test(matanTxt)) matanTxt = "… " + matanTxt;
+  document.getElementById("h-matan").textContent = matanTxt;
   document.getElementById("h-matan-wrap").classList.toggle("hidden", !matan);
   document.getElementById("h-words").innerHTML = words.length
     ? "<b>Kata sulit di hadist ini:</b>" + words.map(([t,d])=>`<div class="gloss-term"><b>${esc(t)}</b><p>${esc(d)}</p></div>`).join("")
@@ -324,7 +330,10 @@ let localAvail = {};
 async function getLocal(b){
   if (localAvail[b.id] !== undefined) return localAvail[b.id] ? bookCache[b.id] : null;
   try {
-    const r = await fetch(`data/${b.id}.json`);
+    const ctl = new AbortController();
+    const to = setTimeout(()=>ctl.abort(), 60000);
+    const r = await fetch(`data/${b.id}.json`, {signal: ctl.signal});
+    clearTimeout(to);
     if (!r.ok) throw 0;
     const d = await r.json();
     const list = (d.hadiths || []).map(h=>({n: h.n, text: h.t, arab: h.a}));
@@ -349,7 +358,12 @@ async function ensureBookData(b){
   return list;
 }
 async function init(){
-  const r = await fetch("index.json"); INDEX = await r.json();
+  try {
+    const r = await fetch("index.json"); INDEX = await r.json();
+  } catch (e) {
+    document.getElementById("book-grid").innerHTML = "<p class='mut'>Gagal memuat daftar kitab. Periksa koneksi lalu muat ulang halaman.</p>";
+    return;
+  }
   const total = INDEX.books.reduce((a,b)=>a+b.count,0);
   const secs = INDEX.books.reduce((a,b)=>a+b.sections.length,0);
   document.getElementById("st-count").textContent = total.toLocaleString("id-ID");
@@ -367,8 +381,9 @@ function showHome(){ show("view-home"); }
 function openBook(id){
   book = INDEX.books.find(b=>b.id===id);
   document.getElementById("book-title").textContent = book.name;
+  const extraNums = book.count - (book.max - book.min + 1);
   document.getElementById("book-meta").textContent =
-    `${book.count.toLocaleString("id-ID")} hadist · nomor ${book.min}–${book.max}${book.sections.length ? " · " + book.sections.length + " bab" : ""}`;
+    `${book.count.toLocaleString("id-ID")} hadist · nomor ${book.min}–${book.max}${book.sections.length ? " · " + book.sections.length + " bab" : ""}${extraNums > 0 ? " · termasuk " + extraNums + " nomor desimal" : ""}`;
   document.getElementById("book-note").textContent = book.note || "";
   document.getElementById("jump-num").max = book.max;
   document.getElementById("sec-count").textContent = book.sections.length;
@@ -382,13 +397,14 @@ function openBook(id){
 }
 function backToBook(){ if (book) openBook(book.id); else showHome(); }
 function jumpTo(){
-  const n = parseInt(document.getElementById("jump-num").value, 10);
-  if (!n || n < book.min || n > book.max) { alert("Nomor di luar jangkauan kitab ini ("+book.min+"–"+book.max+")."); return; }
+  const n = parseFloat(document.getElementById("jump-num").value);
+  if (isNaN(n) || n < book.min || n > book.max) { alert("Nomor di luar jangkauan kitab ini ("+book.min+"–"+book.max+")."); return; }
   openHadith(n);
 }
 async function openHadith(n){
   hadithNum = n; arabShown = false; currentArab = null;
   document.getElementById("btn-arab").textContent = "Tampilkan Arab";
+  document.getElementById("btn-arab").classList.remove("hidden");
   document.getElementById("h-arab-wrap").classList.add("hidden");
   document.getElementById("h-title").textContent = book.name + " — No. " + n;
   document.getElementById("h-bab").textContent = sectionOf(book, n) || "";
@@ -396,9 +412,11 @@ async function openHadith(n){
   document.getElementById("h-explain").classList.add("hidden");
   document.getElementById("h-status").textContent = "";
   show("view-hadith");
+  let usedFallback = false;
   try {
     let texts = [], arabs = [];
     const local = await getLocal(book);
+    usedFallback = !local;
     if (local) {
       const items = local.filter(x=>String(x.n) === String(n));
       if (!items.length) throw new Error("kosong");
@@ -425,22 +443,31 @@ async function openHadith(n){
       document.getElementById("h-text").textContent = texts.join("\n\n");
       renderExplain(texts.join("\n\n"));
     }
-    if (arabs.length && arabs[0]) {
+    const hasArab = arabs.length && arabs[0];
+    if (hasArab) {
       currentArab = arabs.join("\n\n");
-      if (allEmpty) {
+      if (allEmpty || wantArab) {
         document.getElementById("h-arab").textContent = currentArab;
         document.getElementById("h-arab-wrap").classList.remove("hidden");
+        arabShown = true;
+        document.getElementById("btn-arab").textContent = "Sembunyikan Arab";
+        if (allEmpty) wantArab = true;
       }
+    } else if (allEmpty) {
+      document.getElementById("h-text").textContent = "Terjemahan Indonesia untuk nomor ini belum tersedia di dataset terbuka. Teks Arab untuk nomor ini juga belum tersedia.";
+      document.getElementById("btn-arab").classList.add("hidden");
+    } else if (!usedFallback) {
+      document.getElementById("btn-arab").classList.add("hidden");
     }
   } catch (e) {
-    document.getElementById("h-text").textContent = book.source === "gading"
-      ? "Nomor ini tidak tersedia: Musnad Ahmad & Sunan ad-Darimi memang hanya sebagian nomor yang diterjemahkan di dataset (penomoran asli s.d. 26.363 / 3.367). Coba nomor lain atau pakai pencarian."
+    document.getElementById("h-text").textContent = usedFallback
+      ? "Gagal memuat data kitab ini. Periksa koneksi lalu coba lagi, atau kembali dan buka ulang."
       : "Nomor ini tidak tersedia di kitab ini. Coba nomor lain atau pakai pencarian.";
   }
 }
 async function toggleArab(){
   if (arabShown) {
-    arabShown = false;
+    arabShown = false; wantArab = false;
     document.getElementById("h-arab-wrap").classList.add("hidden");
     document.getElementById("btn-arab").textContent = "Tampilkan Arab";
     return;
@@ -448,27 +475,39 @@ async function toggleArab(){
   if (currentArab) {
     document.getElementById("h-arab").textContent = currentArab;
     document.getElementById("h-arab-wrap").classList.remove("hidden");
-    arabShown = true;
+    arabShown = true; wantArab = true;
     document.getElementById("btn-arab").textContent = "Sembunyikan Arab";
     return;
   }
   document.getElementById("btn-arab").textContent = "Memuat Arab...";
   try {
+    if (!book.edition) throw new Error("kosong");
     const araEd = book.edition.replace(/^ind-/, "ara-");
     const d = await fetchFrom(FAWAZ_BASES, `editions/${araEd}/${hadithNum}.json`);
     const list = d.hadiths || [];
-    if (!list.length) throw new Error("kosong");
+    if (!list.length || !list.some(h=>(h.text || "").trim())) throw new Error("kosong");
     document.getElementById("h-arab").textContent = list.map(h=>h.text).join("\n\n");
     document.getElementById("h-arab-wrap").classList.remove("hidden");
-    arabShown = true;
+    arabShown = true; wantArab = true;
     document.getElementById("btn-arab").textContent = "Sembunyikan Arab";
   } catch (e) {
     document.getElementById("btn-arab").textContent = "Tampilkan Arab";
     alert("Teks Arab untuk nomor ini tidak tersedia.");
   }
 }
-function navHadith(d){
-  const n = hadithNum + d;
+async function navHadith(d){
+  try {
+    const list = await getLocal(book) || await ensureBookData(book);
+    const nums = list.map(h=>h.n);
+    const idx = nums.findIndex(x=>String(x) === String(hadithNum));
+    if (idx >= 0) {
+      const j = idx + d;
+      if (j < 0 || j >= nums.length) return;
+      openHadith(nums[j]);
+      return;
+    }
+  } catch (e) {}
+  const n = Number(hadithNum) + d;
   if (n < book.min || n > book.max) return;
   openHadith(n);
 }
@@ -502,6 +541,8 @@ async function searchBook(){
   }
 }
 document.getElementById("btn-random").onclick = async function(){
+  const btn = this;
+  btn.disabled = true; btn.textContent = "⏳ Memuat...";
   const b = INDEX.books[Math.floor(Math.random()*INDEX.books.length)];
   book = b;
   try {
@@ -510,6 +551,7 @@ document.getElementById("btn-random").onclick = async function(){
     const pick = (pool.length ? pool : list)[Math.floor(Math.random()*(pool.length ? pool.length : list.length))];
     openHadith(pick.n);
   } catch (e) { alert("Gagal memuat kitab acak, coba lagi."); }
+  finally { btn.disabled = false; btn.textContent = "🎲 Hadist Acak"; }
 };
 document.getElementById("search-q").addEventListener("keydown", e=>{ if (e.key === "Enter") searchBook(); });
 document.getElementById("jump-num").addEventListener("keydown", e=>{ if (e.key === "Enter") jumpTo(); });
