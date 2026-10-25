@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kumpulan Hadist — 9 Kitab, Bahasa Indonesia & Arab</title>
+<meta name="description" content="Kumpulan hadist 9 kitab (Bukhari, Muslim, Abu Dawud, Tirmidhi, Nasai, Ibnu Majah, Malik, Ahmad, Darimi) dalam Bahasa Indonesia dan Arab.">
+<style>
+  :root{--bg:#fdfbf7;--card:#fff;--ink:#22201c;--mut:#6b655c;--line:#e8e0d3;--green:#1d6b4f;--amber:#b7791f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.6}
+  header{background:var(--green);color:#fff;padding:28px 16px 22px;text-align:center}
+  header h1{margin:0;font-size:26px;line-height:1.25}
+  header p{margin:8px 0 0;opacity:.92;font-size:14px}
+  main{max-width:760px;margin:0 auto;padding:16px}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 18px}
+  .stat{flex:1;min-width:100px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .stat b{display:block;font-size:22px;color:var(--green)}
+  .stat span{font-size:12px;color:var(--mut)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.grid{grid-template-columns:1fr}}
+  .book{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;text-align:left;font:inherit;width:100%}
+  .book:hover{border-color:var(--green)}
+  .book b{font-size:17px;display:block}
+  .book span{font-size:13px;color:var(--mut)}
+  .book .count{margin-top:8px;font-size:13px;color:var(--green);font-weight:600}
+  button,.btn{background:var(--green);color:#fff;border:0;border-radius:10px;padding:11px 16px;font-size:15px;cursor:pointer}
+  button.secondary{background:#fff;color:var(--green);border:1px solid var(--green)}
+  button:disabled{opacity:.5}
+  input[type=text],input[type=number],input[type=search]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row input{flex:1;min-width:120px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  .mut{color:var(--mut);font-size:13px}
+  .hadith-text{font-size:18px;line-height:1.85;white-space:pre-wrap}
+  .arab{font-size:24px;line-height:2.1;direction:rtl;text-align:right;font-family:"Amiri","Traditional Naskh Arabic",serif;white-space:pre-wrap}
+  .bab{font-size:13px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .result{padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .result:last-child{border-bottom:0}
+  .result b{color:var(--green)}
+  .result p{margin:4px 0 0;font-size:14px;color:var(--mut)}
+  details summary{cursor:pointer;font-weight:600;padding:6px 0}
+  .sec{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .sec:last-child{border-bottom:0}
+  .sec small{display:block;color:var(--mut);font-size:12px}
+  .sec span:last-child{color:var(--mut);font-size:13px;white-space:nowrap}
+  footer{max-width:760px;margin:0 auto;padding:8px 16px 32px;color:var(--mut);font-size:12.5px;text-align:center}
+  a{color:var(--green)}
+  .hidden{display:none}
+  .center{text-align:center}
+  .back{margin-bottom:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 Kumpulan Hadist</h1>
+  <p>9 kitab hadist dalam Bahasa Indonesia, lengkap dengan teks Arabnya</p>
+</header>
+<main>
+  <!-- BERANDA -->
+  <section id="view-home">
+    <div class="stats">
+      <div class="stat"><b id="st-books">9</b><span>Kitab</span></div>
+      <div class="stat"><b id="st-count">43.645</b><span>Hadist</span></div>
+      <div class="stat"><b id="st-sec">394</b><span>Bab</span></div>
+    </div>
+    <div class="row" style="margin-bottom:16px">
+      <button id="btn-random" style="flex:1">🎲 Hadist Acak</button>
+    </div>
+    <div class="grid" id="book-grid"></div>
+    <p class="mut center" style="margin-top:18px">Pilih kitab, lalu baca per nomor, telusuri per bab, atau cari kata kunci di dalam kitab.</p>
+  </section>
+
+  <!-- KITAB -->
+  <section id="view-book" class="hidden">
+    <button class="secondary back" onclick="showHome()">← Semua Kitab</button>
+    <h2 id="book-title" style="margin:0 0 4px"></h2>
+    <p class="mut" id="book-meta" style="margin:0 0 16px"></p>
+    <p class="mut" id="book-note" style="margin:-8px 0 16px"></p>
+    <div class="card">
+      <div class="row">
+        <input type="number" id="jump-num" min="1" placeholder="Nomor hadist, mis. 1">
+        <button onclick="jumpTo()">Buka</button>
+      </div>
+    </div>
+    <div class="card">
+      <label for="search-q"><b>Cari di kitab ini</b></label>
+      <div class="row" style="margin-top:8px">
+        <input type="search" id="search-q" placeholder="mis. niat, wudhu, puasa...">
+        <button onclick="searchBook()">Cari</button>
+      </div>
+      <p class="mut" id="search-note" style="margin:8px 0 0">Pencarian pertama memuat isi kitab (sekali saja, lalu tersimpan di memori).</p>
+      <div id="search-results" style="margin-top:8px"></div>
+    </div>
+    <div class="card" id="sec-card">
+      <details open>
+        <summary>Daftar Bab (<span id="sec-count"></span>)</summary>
+        <div id="sec-list" style="margin-top:6px"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- HADIST -->
+  <section id="view-hadith" class="hidden">
+    <button class="secondary back" onclick="backToBook()">← Kembali ke Kitab</button>
+    <div class="card">
+      <div class="bab" id="h-bab"></div>
+      <h2 id="h-title" style="margin:4px 0 12px"></h2>
+      <div class="hadith-text" id="h-text"></div>
+      <div id="h-arab-wrap" class="hidden" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="arab" id="h-arab"></div>
+      </div>
+      <div class="row" style="margin-top:18px">
+        <button class="secondary" onclick="navHadith(-1)">← Sebelumnya</button>
+        <button class="secondary" onclick="navHadith(1)">Berikutnya →</button>
+        <button class="secondary" id="btn-arab" onclick="toggleArab()">Tampilkan Arab</button>
+        <button class="secondary" onclick="copyHadith()">Salin</button>
+      </div>
+      <p class="mut" id="h-status" style="margin:10px 0 0"></p>
+    </div>
+  </section>
+</main>
+<footer>
+  Data: dataset terbuka <a href="https://github.com/fawazahmed0/hadith-api">hadith-api (fawazahmed0)</a> untuk 7 kitab,
+  dan <a href="https://github.com/gadingnst/hadith-api">hadith-api (gadingnst, data tafsirq.com)</a> untuk Musnad Ahmad &amp; Sunan ad-Darimi.
+  Teks lengkap dimuat dari dataset saat dibuka, agar situs tetap ringan. Daftar kitab, jumlah hadist, dan daftar bab tersimpan di repo ini.
+  Catatan: terjemahan Ahmad &amp; Darimi hanya sebagian dari keseluruhan kitab (lihat keterangan tiap kitab).
+</footer>
+<script>
+const FAWAZ_BASES = [
+  "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/",
+  "https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/"
+];
+const GADING_BASES = [
+  "https://cdn.jsdelivr.net/gh/gadingnst/hadith-api@master/books/",
+  "https://raw.githubusercontent.com/gadingnst/hadith-api/master/books/"
+];
+let INDEX = null, book = null, hadithNum = null, arabShown = false, currentArab = null, bookCache = {};
+
+async function fetchFrom(bases, path) {
+  let lastErr = null;
+  for (const b of bases) {
+    try {
+      const r = await fetch(b + path);
+      if (!r.ok) { lastErr = new Error("HTTP " + r.status); continue; }
+      return await r.json();
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("gagal memuat");
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function show(id){
+  ["view-home","view-book","view-hadith"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id));
+  window.scrollTo(0,0);
+}
+function sectionOf(b, n){
+  let cur = null;
+  for (const s of b.sections) {
+    if (s.first != null && n >= s.first && (s.last == null || n <= s.last)) return s.id || s.name;
+    if (s.first != null && n >= s.first) cur = s.id || s.name;
+  }
+  return cur;
+}
+async function ensureBookData(b){
+  if (bookCache[b.id]) return bookCache[b.id];
+  let list;
+  if (b.source === "gading") {
+    const d = await fetchFrom(GADING_BASES, b.slug + ".json");
+    list = (Array.isArray(d) ? d : []).map(x=>({n: x.number, text: x.id, arab: x.arab}));
+  } else {
+    const d = await fetchFrom(FAWAZ_BASES, `editions/${b.edition}.min.json`);
+    list = (d.hadiths || []).map(h=>({n: h.hadithnumber, text: h.text, arab: null}));
+  }
+  bookCache[b.id] = list;
+  return list;
+}
+async function init(){
+  const r = await fetch("index.json"); INDEX = await r.json();
+  const total = INDEX.books.reduce((a,b)=>a+b.count,0);
+  const secs = INDEX.books.reduce((a,b)=>a+b.sections.length,0);
+  document.getElementById("st-count").textContent = total.toLocaleString("id-ID");
+  document.getElementById("st-sec").textContent = secs;
+  document.getElementById("st-books").textContent = INDEX.books.length;
+  const grid = document.getElementById("book-grid");
+  grid.innerHTML = INDEX.books.map(b=>
+    `<button class="book" onclick="openBook('${b.id}')">
+      <b>${esc(b.name)}</b>
+      <span>Nomor ${b.min}–${b.max}</span>
+      <div class="count">${b.count.toLocaleString("id-ID")} hadist${b.sections.length ? " · " + b.sections.length + " bab" : " · tanpa daftar bab"}</div>
+    </button>`).join("");
+}
+function showHome(){ show("view-home"); }
+function openBook(id){
+  book = INDEX.books.find(b=>b.id===id);
+  document.getElementById("book-title").textContent = book.name;
+  document.getElementById("book-meta").textContent =
+    `${book.count.toLocaleString("id-ID")} hadist · nomor ${book.min}–${book.max}${book.sections.length ? " · " + book.sections.length + " bab" : ""}`;
+  document.getElementById("book-note").textContent = book.note || "";
+  document.getElementById("jump-num").max = book.max;
+  document.getElementById("sec-count").textContent = book.sections.length;
+  document.getElementById("sec-card").classList.toggle("hidden", !book.sections.length);
+  document.getElementById("sec-list").innerHTML = book.sections.map(s=>
+    `<div class="sec" onclick="openHadith(${s.first})"><span>${esc(s.id || s.name)}<small>${esc(s.name)}</small></span><span>${s.first}–${s.last}</span></div>`).join("");
+  document.getElementById("search-results").innerHTML = "";
+  document.getElementById("search-q").value = "";
+  document.getElementById("search-note").textContent = "Pencarian pertama memuat isi kitab (sekali saja, lalu tersimpan di memori).";
+  show("view-book");
+}
+function backToBook(){ if (book) openBook(book.id); else showHome(); }
+function jumpTo(){
+  const n = parseInt(document.getElementById("jump-num").value, 10);
+  if (!n || n < book.min || n > book.max) { alert("Nomor di luar jangkauan kitab ini ("+book.min+"–"+book.max+")."); return; }
+  openHadith(n);
+}
+async function openHadith(n){
+  hadithNum = n; arabShown = false; currentArab = null;
+  document.getElementById("btn-arab").textContent = "Tampilkan Arab";
+  document.getElementById("h-arab-wrap").classList.add("hidden");
+  document.getElementById("h-title").textContent = book.name + " — No. " + n;
+  document.getElementById("h-bab").textContent = sectionOf(book, n) || "";
+  document.getElementById("h-text").textContent = "Memuat...";
+  document.getElementById("h-status").textContent = "";
+  show("view-hadith");
+  try {
+    let texts = [], arabs = [];
+    if (book.source === "gading") {
+      const list = await ensureBookData(book);
+      const item = list.find(x=>x.n === n);
+      if (!item) throw new Error("kosong");
+      texts = [item.text]; arabs = [item.arab];
+    } else {
+      const d = await fetchFrom(FAWAZ_BASES, `editions/${book.edition}/${n}.json`);
+      const list = d.hadiths || [];
+      if (!list.length) throw new Error("kosong");
+      texts = list.map(h=>h.text);
+      if (list.length > 1) document.getElementById("h-status").textContent = list.length + " riwayat pada nomor ini.";
+    }
+    document.getElementById("h-text").textContent = texts.join("\n\n");
+    if (arabs.length && arabs[0]) currentArab = arabs.join("\n\n");
+  } catch (e) {
+    document.getElementById("h-text").textContent = "Nomor ini tidak tersedia di kitab ini (mungkin kosong dalam dataset). Coba nomor lain atau pakai pencarian.";
+  }
+}
+async function toggleArab(){
+  if (arabShown) {
+    arabShown = false;
+    document.getElementById("h-arab-wrap").classList.add("hidden");
+    document.getElementById("btn-arab").textContent = "Tampilkan Arab";
+    return;
+  }
+  if (currentArab) {
+    document.getElementById("h-arab").textContent = currentArab;
+    document.getElementById("h-arab-wrap").classList.remove("hidden");
+    arabShown = true;
+    document.getElementById("btn-arab").textContent = "Sembunyikan Arab";
+    return;
+  }
+  document.getElementById("btn-arab").textContent = "Memuat Arab...";
+  try {
+    const araEd = book.edition.replace(/^ind-/, "ara-");
+    const d = await fetchFrom(FAWAZ_BASES, `editions/${araEd}/${hadithNum}.json`);
+    const list = d.hadiths || [];
+    if (!list.length) throw new Error("kosong");
+    document.getElementById("h-arab").textContent = list.map(h=>h.text).join("\n\n");
+    document.getElementById("h-arab-wrap").classList.remove("hidden");
+    arabShown = true;
+    document.getElementById("btn-arab").textContent = "Sembunyikan Arab";
+  } catch (e) {
+    document.getElementById("btn-arab").textContent = "Tampilkan Arab";
+    alert("Teks Arab untuk nomor ini tidak tersedia.");
+  }
+}
+function navHadith(d){
+  const n = hadithNum + d;
+  if (n < book.min || n > book.max) return;
+  openHadith(n);
+}
+function copyHadith(){
+  const t = document.getElementById("h-title").textContent + "\n\n" +
+    document.getElementById("h-text").textContent;
+  navigator.clipboard.writeText(t).then(()=>{ document.getElementById("h-status").textContent = "Tersalin."; });
+}
+async function searchBook(){
+  const q = document.getElementById("search-q").value.trim().toLowerCase();
+  const box = document.getElementById("search-results");
+  if (q.length < 3) { box.innerHTML = "<p class='mut'>Ketik minimal 3 huruf.</p>"; return; }
+  box.innerHTML = "<p class='mut'>Memuat isi kitab...</p>";
+  try {
+    const list = await ensureBookData(book);
+    document.getElementById("search-note").textContent = "Kitab sudah dimuat — pencarian berikutnya instan.";
+    const hits = [];
+    for (const h of list) {
+      const t = (h.text || "").toLowerCase();
+      const i = t.indexOf(q);
+      if (i >= 0) {
+        hits.push({n: h.n, snip: (h.text || "").substring(Math.max(0, i-70), i + q.length + 110)});
+        if (hits.length >= 100) break;
+      }
+    }
+    if (!hits.length) { box.innerHTML = "<p class='mut'>Tidak ditemukan di kitab ini.</p>"; return; }
+    box.innerHTML = "<p class='mut'>Ditemukan " + hits.length + (hits.length>=100 ? "+" : "") + " hasil:</p>" +
+      hits.map(h=>`<div class="result" onclick="openHadith(${h.n})"><b>No. ${h.n}</b><p>...${esc(h.snip)}...</p></div>`).join("");
+  } catch (e) {
+    box.innerHTML = "<p class='mut'>Gagal memuat kitab. Periksa koneksi lalu coba lagi.</p>";
+  }
+}
+document.getElementById("btn-random").onclick = async function(){
+  const b = INDEX.books[Math.floor(Math.random()*INDEX.books.length)];
+  book = b;
+  if (b.source === "gading") {
+    try {
+      const list = await ensureBookData(b);
+      const item = list[Math.floor(Math.random()*list.length)];
+      openHadith(item.n);
+    } catch (e) { alert("Gagal memuat kitab acak, coba lagi."); }
+  } else {
+    const n = Math.floor(Math.random()*(b.max - b.min + 1)) + b.min;
+    openHadith(n);
+  }
+};
+document.getElementById("search-q").addEventListener("keydown", e=>{ if (e.key === "Enter") searchBook(); });
+document.getElementById("jump-num").addEventListener("keydown", e=>{ if (e.key === "Enter") jumpTo(); });
+init();
+</script>
+</body>
+</html>
