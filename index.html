@@ -49,6 +49,14 @@
   .hidden{display:none}
   .center{text-align:center}
   .back{margin-bottom:14px}
+  .toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .toolbar .grp{display:flex;gap:6px;align-items:center}
+  .toolbar button{padding:8px 12px;font-size:14px}
+  .gloss-term{padding:10px 0;border-bottom:1px solid var(--line)}
+  .gloss-term:last-child{border-bottom:0}
+  .gloss-term b{color:var(--green)}
+  .gloss-term p{margin:2px 0 0;font-size:14px}
+  .guide li{margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -57,6 +65,14 @@
   <p>9 kitab hadist dalam Bahasa Indonesia, lengkap dengan teks Arabnya</p>
 </header>
 <main>
+  <div class="toolbar">
+    <div class="grp">
+      <span class="mut">Huruf:</span>
+      <button class="secondary" onclick="changeFont(-2)">A−</button>
+      <button class="secondary" onclick="changeFont(2)">A+</button>
+    </div>
+    <button class="secondary" onclick="openGlossary()">📖 Glosarium</button>
+  </div>
   <!-- BERANDA -->
   <section id="view-home">
     <div class="stats">
@@ -68,6 +84,14 @@
       <button id="btn-random" style="flex:1">🎲 Hadist Acak</button>
     </div>
     <div class="grid" id="book-grid"></div>
+    <div class="card" style="margin-top:16px">
+      <b>📖 Cara Membaca Hadist (buat yang baru mulai)</b>
+      <ol class="guide" style="margin:10px 0 0;padding-left:20px;font-size:15px">
+        <li><b>Awal hadist biasanya deretan nama</b> — itu <i>sanad</i>, alias jalur sampainya hadist dari orang ke orang sampai ke Nabi. Itu bukan isi pesannya, jadi jangan bingung kalau namanya panjang.</li>
+        <li><b>Isi pesannya (<i>matan</i>)</b> biasanya mulai setelah nama terakhir, sering ditandai kata <i>“bersabda”</i> (Nabi berkata). Nah, itu yang dibaca dan diamalkan.</li>
+        <li><b>Ketemu kata sulit?</b> Buka <b>Glosarium</b> di atas — ada arti kata-kata klasik (sanad, matan, wudhu, tayamum, dst.) pakai bahasa sehari-hari.</li>
+      </ol>
+    </div>
     <p class="mut center" style="margin-top:18px">Pilih kitab, lalu baca per nomor, telusuri per bab, atau cari kata kunci di dalam kitab.</p>
   </section>
 
@@ -117,6 +141,18 @@
         <button class="secondary" onclick="copyHadith()">Salin</button>
       </div>
       <p class="mut" id="h-status" style="margin:10px 0 0"></p>
+      <p class="mut" style="margin:8px 0 0">Ketemu kata sulit? <a href="#" onclick="openGlossary();return false;">Buka Glosarium →</a></p>
+    </div>
+  </section>
+
+  <!-- GLOSARIUM -->
+  <section id="view-glossary" class="hidden">
+    <button class="secondary back" onclick="backFromGlossary()">← Kembali</button>
+    <h2 style="margin:0 0 4px">📖 Glosarium</h2>
+    <p class="mut" style="margin:0 0 16px">Arti kata-kata yang sering muncul di hadist, pakai bahasa sehari-hari.</p>
+    <div class="card">
+      <input type="search" id="gloss-q" placeholder="Cari kata, mis. sanad, wudhu..." oninput="renderGlossary()">
+      <div id="gloss-list" style="margin-top:8px"></div>
     </div>
   </section>
 </main>
@@ -150,8 +186,78 @@ async function fetchFrom(bases, path) {
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function show(id){
-  ["view-home","view-book","view-hadith"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id));
+  ["view-home","view-book","view-hadith","view-glossary"].forEach(v=>document.getElementById(v).classList.toggle("hidden", v!==id));
   window.scrollTo(0,0);
+}
+const GLOSSARY = [
+  ["Sanad", "Rantai perawi — daftar orang yang menyampaikan hadist dari satu ke yang lain sampai ke Nabi. Panjangnya sanad bukan isi pesan."],
+  ["Matan", "Isi atau pesan hadist itu sendiri, di luar rantai perawi."],
+  ["Perawi", "Orang yang meriwayatkan (menyampaikan) hadist."],
+  ["Bersabda", "Berkata — kata khusus untuk ucapan Nabi."],
+  ["Telah menceritakan kepada kami", "Pembuka sanad: si perawi mendengar langsung dari gurunya."],
+  ["Telah mengabarkan kepada kami", "Bentuk lain dari pembuka sanad, artinya sama: mendengar langsung dari gurunya."],
+  ["Shallallahu 'alaihi wasallam", "“Semoga Allah melimpahkan shalawat dan salam kepadanya” — doa untuk Nabi, biasa disingkat ﷺ."],
+  ["Radhiyallahu 'anhu", "“Semoga Allah meridhainya” — doa untuk sahabat Nabi."],
+  ["Sahih", "Hadist yang sanadnya bersambung dan perawinya adil serta kuat hafalannya."],
+  ["Hasan", "Hadist yang bagus, tapi kualitas perawinya setingkat di bawah sahih."],
+  ["Dhaif", "Hadist yang lemah — ada cacat di sanad atau perawinya."],
+  ["Wudhu", "Bersuci dengan air untuk shalat (cuci muka, tangan, usap kepala, cuci kaki)."],
+  ["Tayamum", "Bersuci pengganti wudhu/mandi pakai debu suci, kalau tidak ada air atau tidak boleh kena air."],
+  ["Junub", "Keadaan hadas besar (mis. setelah berhubungan suami-istri) yang wajib mandi sebelum ibadah."],
+  ["Hadas", "Keadaan tidak suci. Hadas kecil batal wudhunya; hadas besar wajib mandi."],
+  ["Najis", "Kotoran yang menghalangi sahnya ibadah, mis. darah, kencing, dan kotoran."],
+  ["Taharah", "Bersuci — istilah umum untuk wudhu, mandi, dan tayamum."],
+  ["I'tikaf", "Diam di masjid dengan niat ibadah, biasanya 10 hari terakhir Ramadhan."],
+  ["Qashar", "Meringkas shalat 4 rakaat jadi 2 rakaat saat sedang safar (bepergian jauh)."],
+  ["Safar", "Bepergian jauh."],
+  ["Tahajud", "Shalat sunnah malam setelah tidur."],
+  ["Witir", "Shalat sunnah ganjil sebagai penutup shalat malam."],
+  ["Tarawih", "Shalat sunnah malam-malam bulan Ramadhan."],
+  ["Istisqa", "Shalat minta hujan."],
+  ["Sujud tilawah", "Sujud saat membaca atau mendengar ayat sajdah."],
+  ["Zakat", "Harta wajib yang dikeluarkan untuk golongan tertentu (fakir, miskin, dst.)."],
+  ["Fidyah", "Tebusan berupa memberi makan orang miskin, bagi yang tidak bisa puasa."],
+  ["Kafarat", "Denda atau tebusan atas pelanggaran tertentu."],
+  ["Diyat", "Ganti rugi berupa harta atas pembunuhan atau pelukaan."],
+  ["Hudud", "Hukuman yang ketetapannya dari Allah, mis. potong tangan pencuri dan cambuk."],
+  ["Talak", "Cerai."],
+  ["Li'an", "Sumpah saling melaknat antara suami-istri dalam kasus tuduhan zina."],
+  ["Iddah", "Masa tunggu perempuan setelah cerai atau ditinggal mati suami."],
+  ["Mahram", "Orang yang haram dinikahi, mis. keluarga dekat."],
+  ["Aqiqah", "Sembelihan syukur atas kelahiran anak."],
+  ["Kurban", "Sembelihan hewan pada Idul Adha."],
+  ["Umrah", "Ibadah ziarah ke Makkah: thawaf, sa'i, lalu tahallul (cukur)."],
+  ["Thawaf", "Mengelilingi Ka'bah 7 kali."],
+  ["Sa'i", "Berjalan/berlari kecil antara bukit Shafa dan Marwah."],
+  ["Ihram", "Keadaan niat haji/umrah beserta larangan-larangannya."],
+  ["Syuf'ah", "Hak beli pertama atas tanah atau bangunan bersama."],
+  ["Wala'", "Hak perwalian, terkait budak yang dimerdekakan."],
+  ["Khumus", "Seperlima harta rampasan perang untuk Allah dan Rasul."],
+  ["Fai'", "Harta rampasan yang didapat tanpa perang."],
+];
+let prevView = "view-home";
+function openGlossary(){
+  const cur = ["view-home","view-book","view-hadith"].find(v=>!document.getElementById(v).classList.contains("hidden"));
+  if (cur) prevView = cur;
+  renderGlossary();
+  show("view-glossary");
+}
+function backFromGlossary(){ show(prevView); }
+function renderGlossary(){
+  const q = (document.getElementById("gloss-q").value || "").trim().toLowerCase();
+  const list = GLOSSARY.filter(([t,d])=>!q || t.toLowerCase().includes(q) || d.toLowerCase().includes(q));
+  document.getElementById("gloss-list").innerHTML = list.length
+    ? list.map(([t,d])=>`<div class="gloss-term"><b>${esc(t)}</b><p>${esc(d)}</p></div>`).join("")
+    : "<p class='mut'>Tidak ditemukan. Coba kata lain.</p>";
+}
+let fontSize = parseInt(localStorage.getItem("h-font") || "18", 10);
+function applyFont(){
+  document.querySelectorAll(".hadith-text").forEach(el=>el.style.fontSize = fontSize + "px");
+}
+function changeFont(d){
+  fontSize = Math.min(26, Math.max(15, fontSize + d));
+  localStorage.setItem("h-font", fontSize);
+  applyFont();
 }
 function sectionOf(b, n){
   let cur = null;
@@ -320,6 +426,7 @@ document.getElementById("btn-random").onclick = async function(){
 };
 document.getElementById("search-q").addEventListener("keydown", e=>{ if (e.key === "Enter") searchBook(); });
 document.getElementById("jump-num").addEventListener("keydown", e=>{ if (e.key === "Enter") jumpTo(); });
+applyFont();
 init();
 </script>
 </body>
